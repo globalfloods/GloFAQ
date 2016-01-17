@@ -106,7 +106,7 @@ result = api.query("""
     </osm-script>
 """.format(east,north,south,west))
 
-from shapely.geometry import LineString, Polygon
+from shapely.geometry import LineString, box
 roads = []
 for way in result.ways:
     roads.append(LineString([(node.lon, node.lat) for node in way.nodes]))
@@ -114,19 +114,17 @@ for way in result.ways:
 delta_lat = float(north - south) / return_period.shape[0]
 delta_lon = float(east - west) / return_period.shape[1]
 
-pixels = np.zeros(return_period.shape)
-
-xl,yl = return_period.shape
+yl,xl = return_period.shape
 pixels = []
 for xi in range(xl):
     pixels.append([])
     for yi in range(yl):
-        top_lon = west+xi*delta_lon
-        top_lat = north-yi*delta_lat
-        bot_lon = west+(xi+1)*delta_lon
-        bot_lat = north-(yi+1)*delta_lat
-        pixels[-1].append(Polygon([(bot_lon,bot_lat),(top_lon,bot_lat),(top_lon,top_lat),(bot_lon,top_lat)]))
-        # print xi,yi,top_lon,top_lat,bot_lon,bot_lat
+        west_lon = west+xi*delta_lon
+        north_lat = north-yi*delta_lat
+        east_lon = west+(xi+1)*delta_lon
+        south_lat = north-(yi+1)*delta_lat
+        pixels[-1].append(box(west_lon,south_lat,east_lon,north_lat))
+        print xi,yi,west_lon,south_lat,east_lon,north_lat
 
 pixels = np.array(pixels)
 
@@ -137,7 +135,7 @@ for forecast,discharge in enumerate(discharges):
     plt.colorbar()
     for road in roads:
         nz_yi,nz_xi = (discharge>return_period).nonzero()
-        flooded = [road.intersects(pixel) for pixel in pixels[nz_xi,nz_yi]]
+        flooded = [road.intersects(pixels[yi][xi]) for xi,yi in zip(nz_yi,nz_xi)]
         if True in flooded:
              plt.plot(*road.xy,c='r',linewidth=1)
         else:
