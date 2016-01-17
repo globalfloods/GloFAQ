@@ -130,60 +130,18 @@ for xi in range(xl):
 
 pixels = np.array(pixels)
 
-# Now generate forecast in parallel
-import multiprocessing
-def job(forecast,discharge):
-    '''
-    Parallelise the process.
-    '''
-
+for forecast,discharge in enumerate(discharges):
     plt.figure()
-    plt.title('{}: Roads likely to be flooded: {} hrs'.format(country,forecast*24))
+    plt.title('{}: Roads likely to be flooded: Day {}'.format(country,forecast))
     plt.imshow(discharge>return_period,extent=[west,east,south,north],alpha=0.5,interpolation="none")
     plt.colorbar()
     for road in roads:
         nz_yi,nz_xi = (discharge>return_period).nonzero()
-        flooded = [road.intersects(pixel) for pixel in pixels]
+        flooded = [road.intersects(pixel) for pixel in pixels[nz_xi,nz_yi]]
         if True in flooded:
              plt.plot(*road.xy,c='r',linewidth=1)
         else:
             plt.plot(*road.xy,c='g',linewidth=1)
 
-    plt.savefig('{}-roads-likely-to-be-flooded-{}-hrs.pdf'.format(country,forecast*24))  
-        
-    return True  
-
-# import multiprocessing
-
-def start_process():
-    '''
-    Multiprocessing calls this before starting.
-    '''
-    print 'Starting', multiprocessing.current_process().name
-
-# Start the multiprocessing unit
-if __name__ == '__main__':
-    pool_size = multiprocessing.cpu_count() * 4
-
-    try:
-        pool = multiprocessing.Pool(processes=pool_size,
-                                    initializer=start_process,
-                                    )
-        pool_outputs = pool.map(job, enumerate(discharges))
-        pool.close() # no more tasks
-        pool.join()  # wrap up current task
-        print 'Pool closed and joined normally.'
-    except KeyboardInterrupt:
-        print 'KeyboardInterrupt caught in parent...'
-        pool.terminate()
-        pool.join()  # wrap up current task
-        print 'Pool terminated and joined due to an exception'
-
-print '----------------------------------------------------------------------'
-print 'Summary (City, Scenarios complete)'
-print '----------------------------------------------------------------------'
-for place, success in zip(discharges, pool_outputs):
-    if success == len(scenarios):
-        print '{0}: {1} successful scenario(s)'.format(place, success)
-    else:
-        print '  INCOMPLETE: {0}: {1} successful scenario(s)'.format(place, success)    
+    plt.savefig('{}-roads-likely-to-be-flooded-day-{}.pdf'.format(country,forecast))  
+    print 'Day', forecast
